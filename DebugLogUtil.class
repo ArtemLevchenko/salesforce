@@ -1,0 +1,90 @@
+/**
+ * @author: Artem Levchenko
+ * @date: 27/08/2013
+ *
+ * Objective: This class alternative Dedug instrument for developer
+ */
+public with sharing class DebugLogUtil {
+    public final static String BASIC = 'BASIC ';
+    public final static String API = 'api:';
+    public final static String AUTHORIZATION = 'Authorization';
+    public final static String METHOD = 'POST';
+    public final static String SUBJECT = 'subject=DEBUG LOG';
+    public final static String TEXT = 'text=';
+    public final static String TO ='to=';
+    public final static String FROM_ADD = 'from=Debug Service <artem.levchenko@mailgun.org>';
+    public final static String HOST = 'api.mailgun.net';
+ 
+    private HttpRequest req;
+    private String message;
+    // SETTING for Service
+    private static final DebugUtilSetting__c SETTINGS = DebugUtilSetting__c.getInstance();
+    private static DebugLogUtil instance = null;
+ 
+    /*
+    * Init Request (start debug phase)
+    */
+    private DebugLogUtil () {
+        req = new HttpRequest();
+        req.setHeader(DebugLogUtil.AUTHORIZATION, DebugLogUtil.BASIC + EncodingUtil.base64Encode(Blob.valueOf(DebugLogUtil.API + SETTINGS.KeyToken__c)));
+        req.setEndpoint(SETTINGS.Endpoint__c);
+        req.setMethod(METHOD);
+        req.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+        req.setHeader('Accept', 'application/json, application/xml, text/json, text/x-json, text/javascript, text/xml, application/json');
+        req.setHeader('Host', DebugLogUtil.HOST);
+        this.message = DebugLogUtil.FROM_ADD + '&' + 
+                       DebugLogUtil.TO + SETTINGS.toAddress__c+ '&' + 
+                       DebugLogUtil.SUBJECT+'&';
+        this.message += DebugLogUtil.TEXT +'----------Debug Start------------n';
+    }
+    /*
+    * Lazy Initializable DebugLogUtil
+    *   @return: instance DebugLogUtil class    
+    */
+    public static DebugLogUtil getInstance(){
+        if (instance == null) {
+            instance = new DebugLogUtil();
+        }
+        return instance;
+    }
+ 
+    /*
+    *   Send Message (end debug phase)  
+    */
+    public void stopDebug(){
+        if(SETTINGS.isDebug__c){
+            this.message += '----------Debug End------------n';
+            req.setHeader('Content-Length', String.valueOf(this.message.length()));
+            req.setBody(this.message); 
+            Http httpObject = new Http();
+            HTTPResponse resp = httpObject.send(req);
+            instance = new DebugLogUtil();
+        }
+    }
+    ///////////////////////////////////////////////////////////////
+    //                    Methods for Debug                     //
+    /////////////////////////////////////////////////////////////
+    public void systemDebug(String obj){
+        if(SETTINGS.isDebug__c){                         
+            this.message += 'VARIABLE = ' + obj + 'n';
+        }       
+    }
+    public void systemDebug(Decimal obj){
+        if(SETTINGS.isDebug__c){                         
+            this.message += 'VARIABLE = ' + obj + 'n';
+        }       
+    }
+    public void systemDebug(sObject obj){
+        if(SETTINGS.isDebug__c){                         
+            this.message += 'VARIABLE = ' + obj + 'n';
+        }       
+    }
+    public void systemDebug(List<sObject> objs){                         
+        if(SETTINGS.isDebug__c){
+            for(sObject obj : objs){
+                this.message += 'VARIABLE = ' + obj + 'n';
+            }
+        }       
+    }
+    // TODO: Please implemented systemDebug method
+}
